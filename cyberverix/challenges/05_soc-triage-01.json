@@ -1,0 +1,229 @@
+{
+  "id": "soc-triage-01",
+  "title": "SOC Alert Triage Shift",
+  "category": "soc",
+  "difficulty": "Medium",
+  "minutes": 15,
+  "summary": "Six alerts land in the queue. Classify each one, then justify your escalation order.",
+  "objective": "Practise triage judgement: benign, suspicious or potential incident, plus the reasoning that survives review.",
+  "scenario": "You have the queue for the next hour in a simulated SOC. Six alerts are waiting, all from lab telemetry. Classify each alert, then explain the call you would defend to your shift lead. Classification without reasoning is a guess, and a guess is what gets a real incident closed as noise.",
+  "evidence": [
+    {
+      "type": "note",
+      "title": "Classification guide",
+      "content": "Benign: explained by known legitimate activity, close with a note. Suspicious: not explained yet, needs investigation before a verdict. Potential Incident: evidence of confirmed malicious activity or real impact, escalate now."
+    },
+    {
+      "type": "list",
+      "title": "Alert queue",
+      "items": [
+        "ALERT-1 - 02:14 UTC. Backup service account read 41,000 files from the finance share in 20 minutes. The scheduled nightly backup job window is 02:00 to 03:00 and the volume matches the previous 30 nights.",
+        "ALERT-2 - 13:48 UTC. Endpoint agent blocked and quarantined a credential dumping tool on a finance workstation. The logged in user says they only opened an emailed invoice. Nothing else has been checked yet.",
+        "ALERT-3 - 08:02 UTC. One failed VPN login for m.silva from the usual home country and ISP, followed 40 seconds later by a successful login with MFA satisfied. No other failures for that account in 30 days.",
+        "ALERT-4 - Continuous. One workstation makes DNS queries to a newly registered domain with random looking subdomains every 60 seconds, day and night, including outside working hours. No user is logged in for most of it.",
+        "ALERT-5 - 03:20 UTC. A domain admin account ran net user /add and net localgroup administrators /add on a domain controller. No change ticket exists and the admin's normal hours are 09:00 to 17:00.",
+        "ALERT-6 - 21:10 UTC. 38 GB of outbound traffic from the customer database server to an external file sharing provider over two hours. The server has no business reason to reach the internet and egress filtering is not enforced."
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "type": "classify",
+      "points": 12,
+      "prompt": "Classify each alert in the queue.",
+      "labels": [
+        {
+          "id": "benign",
+          "label": "Benign"
+        },
+        {
+          "id": "suspicious",
+          "label": "Suspicious"
+        },
+        {
+          "id": "incident",
+          "label": "Potential Incident"
+        }
+      ],
+      "items": [
+        {
+          "id": "a1",
+          "ref": "ALERT-1",
+          "text": "02:14 UTC. Backup service account read 41,000 files from the finance share in 20 minutes. The scheduled nightly backup job window is 02:00 to 03:00 and the volume matches the previous 30 nights.",
+          "correct": "benign"
+        },
+        {
+          "id": "a2",
+          "ref": "ALERT-2",
+          "text": "13:48 UTC. Endpoint agent blocked and quarantined a credential dumping tool on a finance workstation. The logged in user says they only opened an emailed invoice. Nothing else has been checked yet.",
+          "correct": "incident"
+        },
+        {
+          "id": "a3",
+          "ref": "ALERT-3",
+          "text": "08:02 UTC. One failed VPN login for m.silva from the usual home country and ISP, followed 40 seconds later by a successful login with MFA satisfied. No other failures for that account in 30 days.",
+          "correct": "benign"
+        },
+        {
+          "id": "a4",
+          "ref": "ALERT-4",
+          "text": "Continuous. One workstation makes DNS queries to a newly registered domain with random looking subdomains every 60 seconds, day and night, including outside working hours. No user is logged in for most of it.",
+          "correct": "suspicious"
+        },
+        {
+          "id": "a5",
+          "ref": "ALERT-5",
+          "text": "03:20 UTC. A domain admin account ran net user /add and net localgroup administrators /add on a domain controller. No change ticket exists and the admin's normal hours are 09:00 to 17:00.",
+          "correct": "suspicious"
+        },
+        {
+          "id": "a6",
+          "ref": "ALERT-6",
+          "text": "21:10 UTC. 38 GB of outbound traffic from the customer database server to an external file sharing provider over two hours. The server has no business reason to reach the internet and egress filtering is not enforced.",
+          "correct": "incident"
+        }
+      ],
+      "explanation": "ALERT-1 and ALERT-3 are benign: both match an established known good baseline. ALERT-4 and ALERT-5 are suspicious: beaconing style DNS and unticketed admin account creation are unexplained but not yet proven malicious. ALERT-2 and ALERT-6 are potential incidents: a credential dumper on an endpoint means something already executed, and 38 GB leaving a database server to external storage is possible exfiltration. Partial credit is given per alert."
+    },
+    {
+      "id": "q2",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "Which alert would you escalate first and why?",
+      "placeholder": "Name the alert and justify with impact and asset value.",
+      "min_words": 8,
+      "concepts": [
+        {
+          "label": "Escalates the database exfiltration or the credential dumper",
+          "points": 2,
+          "any": [
+            "alert-6",
+            "alert 6",
+            "38 gb",
+            "database server",
+            "exfil",
+            "alert-2",
+            "alert 2",
+            "credential dump",
+            "mimikatz"
+          ]
+        },
+        {
+          "label": "Justifies by business impact or data loss",
+          "points": 2,
+          "any": [
+            "impact",
+            "data loss",
+            "exfiltrat",
+            "confidential",
+            "customer data",
+            "breach",
+            "reportab",
+            "regulat"
+          ]
+        },
+        {
+          "label": "Weighs asset criticality",
+          "points": 2,
+          "any": [
+            "critical",
+            "crown jewel",
+            "sensitive",
+            "asset value",
+            "production",
+            "customer database",
+            "high value"
+          ]
+        }
+      ],
+      "model_answer": "ALERT-6 first. 38 GB leaving the customer database server to external file storage is possible data exfiltration from the highest value asset we have, and if customer data left the environment it becomes a reportable breach. ALERT-2 is a close second because a credential dumper that already executed means the endpoint is compromised.",
+      "explanation": "Escalation order comes from impact times asset criticality, not from alert severity labels. Potential data loss from a customer database outranks a contained endpoint detection, and both outrank unexplained-but-unproven activity."
+    },
+    {
+      "id": "q3",
+      "type": "single",
+      "points": 4,
+      "prompt": "Before closing ALERT-3 as benign, what is the minimum you should confirm?",
+      "options": [
+        {
+          "id": "c1",
+          "label": "Nothing, one failed login before a success is always a typo"
+        },
+        {
+          "id": "c2",
+          "label": "That the MFA prompt was approved by the real user, and the source geolocation and device match their history"
+        },
+        {
+          "id": "c3",
+          "label": "That the user's password meets the complexity policy"
+        },
+        {
+          "id": "c4",
+          "label": "That the VPN concentrator firmware is current"
+        }
+      ],
+      "correct": "c2",
+      "explanation": "Benign is a conclusion, so it needs at least one confirming data point. Check that the MFA approval came from the user's own device and that the source matches their pattern. MFA fatigue attacks look exactly like a typo followed by a successful login."
+    },
+    {
+      "id": "q4",
+      "type": "keywords",
+      "points": 5,
+      "prompt": "What factors decide the order you work a queue like this?",
+      "placeholder": "List the factors you weigh, not the alerts.",
+      "min_words": 8,
+      "concepts": [
+        {
+          "label": "Impact or severity of the potential outcome",
+          "points": 2,
+          "any": [
+            "impact",
+            "severity",
+            "damage",
+            "consequence",
+            "loss"
+          ]
+        },
+        {
+          "label": "Criticality or sensitivity of the affected asset",
+          "points": 2,
+          "any": [
+            "asset",
+            "critical",
+            "sensitive",
+            "data classification",
+            "crown jewel",
+            "business value"
+          ]
+        },
+        {
+          "label": "Confidence in the detection and how fast it is spreading",
+          "points": 1,
+          "any": [
+            "confidence",
+            "fidelity",
+            "false positive",
+            "true positive",
+            "spread",
+            "time sensitiv",
+            "velocity",
+            "active",
+            "ongoing",
+            "in progress"
+          ]
+        }
+      ],
+      "model_answer": "Impact if the alert is real, criticality and data sensitivity of the affected asset, detection confidence, and whether the activity is still ongoing rather than already contained.",
+      "explanation": "Good triage weighs impact, asset criticality, detection confidence and whether the activity is live. Ongoing activity on a critical asset beats a contained detection on a spare laptop every time."
+    }
+  ],
+  "concept": "Triage is a decision under uncertainty. The three way classification exists so analysts can move fast without pretending to know: suspicious is a legitimate answer, and every verdict needs a reason written down.",
+  "remediation": [
+    "Write the reason for every classification in the ticket, not just the verdict",
+    "Baseline scheduled jobs so backup style alerts auto close with evidence",
+    "Alert on newly registered domains and fixed interval DNS beaconing",
+    "Require change tickets for privileged account creation and alert when one is missing",
+    "Enforce egress filtering on server VLANs so exfiltration is blocked, not just observed"
+  ]
+}

@@ -1,0 +1,259 @@
+{
+  "id": "incident-response-01",
+  "title": "Incident Response Decisions",
+  "category": "incident",
+  "difficulty": "Medium",
+  "minutes": 15,
+  "summary": "An active simulated intrusion, no containment yet. Choose the right actions in the right order without destroying evidence.",
+  "objective": "Apply severity assessment, containment before eradication, and evidence preservation to a live scenario.",
+  "scenario": "You have just been handed LAB-IR-2026-014. The timeline below is reconstructed from lab telemetry. The compromised workstation is still online and data is still leaving the environment. Every decision here is a tradeoff between stopping the damage and keeping the evidence that explains it.",
+  "evidence": [
+    {
+      "type": "terminal",
+      "title": "Reconstructed timeline (simulated)",
+      "content": "SIMULATED INCIDENT TIMELINE - LAB EXERCISE ONLY\nIncident ref: LAB-IR-2026-014        Reported: 14:20 UTC by helpdesk\n\n09:12  Six staff in Accounts receive an email titled \"Invoice overdue - action required\"\n       with an attached macro enabled spreadsheet. The sender domain was registered 3 days ago.\n09:31  One user, r.ahmed, opens the attachment and enables content.\n09:33  Office spawns a script host process which writes a file to %APPDATA% and beacons out\n       on 443 every 5 minutes.\n10:47  Credential dumping activity detected on the same workstation. Not blocked.\n11:52  The dumped local admin credential is reused to authenticate to two file servers\n       (network logon, type 3).\n13:05  A 12 GB archive is created on FIN-SRV-02 containing folders from the finance share.\n13:40  Outbound transfer of the archive begins to an external file sharing service.\n14:20  Helpdesk receives a call: \"my machine keeps freezing\". Ticket raised.\n14:35  You are assigned as the analyst. The workstation is still powered on and connected.\n       The archive transfer is still in progress. No containment has happened yet.\n"
+    },
+    {
+      "type": "note",
+      "title": "Environment notes",
+      "content": "The lab has endpoint isolation available from the EDR console, central log forwarding, and no formal on call process. Backups of the finance share are 24 hours old and verified."
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single",
+      "points": 5,
+      "prompt": "How would you classify the severity of this incident right now?",
+      "options": [
+        {
+          "id": "s1",
+          "label": "Low: one workstation is affected and the user only opened an email"
+        },
+        {
+          "id": "s2",
+          "label": "Medium: malware executed but the endpoint agent will contain it"
+        },
+        {
+          "id": "s3",
+          "label": "High: credentials were stolen, reused on servers, and data is actively leaving the environment"
+        },
+        {
+          "id": "s4",
+          "label": "Cannot be classified until forensic analysis is complete"
+        }
+      ],
+      "correct": "s3",
+      "explanation": "Three factors make this high: confirmed credential theft, lateral movement to two servers, and active exfiltration in progress. Severity is assessed from current evidence, not after forensics, because the severity is what unlocks the response resources you need in the next ten minutes."
+    },
+    {
+      "id": "q2",
+      "type": "multi",
+      "points": 8,
+      "prompt": "Which actions are appropriate in the next fifteen minutes?",
+      "hint": "Two of these options actively harm the investigation.",
+      "options": [
+        {
+          "id": "r1",
+          "label": "Isolate the workstation from the network using EDR containment"
+        },
+        {
+          "id": "r2",
+          "label": "Block the external file sharing destination at the perimeter"
+        },
+        {
+          "id": "r3",
+          "label": "Power off the workstation immediately to stop the transfer"
+        },
+        {
+          "id": "r4",
+          "label": "Disable and reset the compromised local admin credential"
+        },
+        {
+          "id": "r5",
+          "label": "Reimage the workstation right away so the user can get back to work"
+        },
+        {
+          "id": "r6",
+          "label": "Preserve volatile data and logs from the affected hosts"
+        },
+        {
+          "id": "r7",
+          "label": "Notify the incident lead and start an evidence log with timestamps"
+        }
+      ],
+      "correct": [
+        "r1",
+        "r2",
+        "r4",
+        "r6",
+        "r7"
+      ],
+      "explanation": "Isolate, block the destination, kill the stolen credential, preserve evidence and escalate. Pulling the power destroys memory that holds the decryption keys, injected code and network state, and reimaging before collection destroys the whole investigation. Network isolation stops the harm while keeping the host alive for collection."
+    },
+    {
+      "id": "q3",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "What must be preserved before the workstation is rebuilt, and why does the order matter?",
+      "placeholder": "Name what you collect and the principle behind the sequence.",
+      "min_words": 10,
+      "concepts": [
+        {
+          "label": "Volatile data such as memory and network state first",
+          "points": 2,
+          "any": [
+            "memory",
+            "ram",
+            "volatile",
+            "running process",
+            "network connection",
+            "order of volatility"
+          ]
+        },
+        {
+          "label": "Disk image and relevant logs",
+          "points": 2,
+          "any": [
+            "disk image",
+            "forensic image",
+            "image the disk",
+            "bit for bit",
+            "log",
+            "artifact",
+            "triage collection"
+          ]
+        },
+        {
+          "label": "Documentation, hashing or chain of custody",
+          "points": 2,
+          "any": [
+            "chain of custody",
+            "hash",
+            "integrity",
+            "document",
+            "evidence log",
+            "timestamp",
+            "notes"
+          ]
+        }
+      ],
+      "model_answer": "Collect volatile evidence first: memory, running processes and active network connections, because that disappears the moment the host is powered off. Then take a forensic disk image and pull the forwarded logs. Hash everything, record who collected what and when, and keep a chain of custody so the findings hold up later.",
+      "explanation": "Order of volatility drives the sequence: memory and network state die first, disk survives, forwarded logs survive longest. Hashing and a chain of custody are what turn collected data into evidence rather than files."
+    },
+    {
+      "id": "q4",
+      "type": "single",
+      "points": 4,
+      "prompt": "Containment and eradication are different phases. Which statement is correct?",
+      "options": [
+        {
+          "id": "e1",
+          "label": "Eradication comes first so the malware cannot spread while you contain"
+        },
+        {
+          "id": "e2",
+          "label": "Containment limits the damage now, eradication removes the attacker's access and artefacts once scope is understood"
+        },
+        {
+          "id": "e3",
+          "label": "They are the same activity described in different words"
+        },
+        {
+          "id": "e4",
+          "label": "Containment can be skipped when reliable backups exist"
+        }
+      ],
+      "correct": "e2",
+      "explanation": "Contain first to stop the bleeding, then scope, then eradicate. Eradicating before you understand scope means you clean one host, tip off the attacker, and leave the persistence you never found. Backups help recovery, they do not stop an active intrusion."
+    },
+    {
+      "id": "q5",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "Beyond the technical cleanup, what belongs in the post incident report?",
+      "placeholder": "Think about root cause, impact and what changes afterwards.",
+      "min_words": 10,
+      "concepts": [
+        {
+          "label": "Root cause rather than only symptoms",
+          "points": 2,
+          "any": [
+            "root cause",
+            "initial access",
+            "how it started",
+            "macro",
+            "phishing",
+            "entry point",
+            "why it worked"
+          ]
+        },
+        {
+          "label": "Impact and scope, including what data was affected",
+          "points": 2,
+          "any": [
+            "impact",
+            "scope",
+            "what data",
+            "affected system",
+            "data loss",
+            "exfiltrat",
+            "which hosts",
+            "timeline"
+          ]
+        },
+        {
+          "label": "Lessons learned and concrete preventive actions",
+          "points": 2,
+          "any": [
+            "lesson",
+            "recommend",
+            "preventive",
+            "improve",
+            "control",
+            "macro block",
+            "training",
+            "detection gap",
+            "action item"
+          ]
+        }
+      ],
+      "model_answer": "Root cause: a macro enabled attachment from a newly registered domain executed because macros were allowed and the credential dumping detection did not block. Impact and scope: one workstation, two file servers, 12 GB of finance data staged and partly transferred, with the full timeline. Then the lessons: block macros from the internet, move the credential theft detection from detect to block, enforce egress filtering, and define an on call escalation path.",
+      "explanation": "A report that stops at what the malware did teaches nothing. Name the root cause, quantify impact and scope with a timeline, then list the specific control changes that would have stopped or shortened this. Detection gaps are as important as the malware itself."
+    },
+    {
+      "id": "q6",
+      "type": "single",
+      "points": 4,
+      "prompt": "Finance data may have left the environment. What does that change?",
+      "options": [
+        {
+          "id": "n1",
+          "label": "Nothing, it is a technical matter for the security team"
+        },
+        {
+          "id": "n2",
+          "label": "It may trigger legal, regulatory or contractual notification duties, so leadership and legal need to be informed early"
+        },
+        {
+          "id": "n3",
+          "label": "Only the data owner needs to know once cleanup is finished"
+        },
+        {
+          "id": "n4",
+          "label": "Notification is only required if the attacker publishes the data"
+        }
+      ],
+      "correct": "n2",
+      "explanation": "Confirmed or suspected data exfiltration moves the incident beyond the security team. Notification obligations often run on tight clocks, and they start when the organisation becomes aware, not when the cleanup finishes. Inform leadership and legal early, even while facts are still forming."
+    }
+  ],
+  "concept": "Incident response is sequencing under pressure. Contain, preserve, scope, eradicate, recover, learn. Skipping preservation to move faster is the most common way an investigation ends with no answer to the question everyone asks: what did they take?",
+  "remediation": [
+    "Use network isolation rather than power off so volatile evidence survives",
+    "Block macros in files originating from the internet",
+    "Move high confidence credential theft detections from alert to block",
+    "Enforce egress filtering so exfiltration is prevented rather than observed",
+    "Write an escalation path with named roles before the next incident"
+  ]
+}

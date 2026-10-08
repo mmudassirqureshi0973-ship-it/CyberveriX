@@ -1,0 +1,220 @@
+{
+  "id": "web-nikto-01",
+  "title": "Web Server Finding Triage",
+  "category": "web",
+  "difficulty": "Easy",
+  "minutes": 12,
+  "summary": "Sort a simulated Nikto report into real issues, noise, and the one finding that needs an incident conversation.",
+  "objective": "Separate signal from noise in automated web scanner output and justify remediation priority.",
+  "scenario": "portal.lab.local is a training web application inside the lab network. An authorised scan produced the report below. Automated scanners are noisy: some lines are genuine exposures, some are informational, and one of them is close to a breach. Triage the output for the application owner.",
+  "evidence": [
+    {
+      "type": "terminal",
+      "title": "Nikto report (simulated)",
+      "content": "- Nikto v2.5.0 (simulated report against LAB host 10.10.24.31)\n+ Target IP:          10.10.24.31\n+ Target Hostname:    portal.lab.local\n+ Start Time:         2026-03-11 09:14:22\n\n+ Server: Apache/2.4.29 (Ubuntu) PHP/7.2.24\n+ The anti-clickjacking X-Frame-Options header is not present.\n+ The X-Content-Type-Options header is not set.\n+ No CSP header found.\n+ Cookie PHPSESSID created without the httponly flag.\n+ Cookie PHPSESSID created without the secure flag.\n+ Server leaks inodes via ETags, header found with file /, fields: 0x2aa6 0x5f3c1f2a\n+ OSVDB-3092: /admin/: This might be interesting.\n+ Directory indexing found at /backup/\n+ /backup/db_dump_2026-02-28.sql.gz: Database backup archive is publicly readable.\n+ Allowed HTTP Methods: GET, HEAD, POST, OPTIONS, TRACE\n+ OSVDB-877: HTTP TRACE method is active, suggesting the host is vulnerable to XST.\n+ /phpinfo.php: Output from the phpinfo() function was found.\n+ Server responds to HEAD requests.\n+ 7521 requests: 0 error(s) and 13 item(s) reported\n\n+ End Time: 2026-03-11 09:17:05 (163 seconds)\n"
+    },
+    {
+      "type": "note",
+      "title": "Application context",
+      "content": "The portal handles student login sessions. It sits behind a reverse proxy that terminates TLS, so the application itself sees plain HTTP from the proxy."
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multi",
+      "points": 6,
+      "prompt": "Which report lines are genuine security findings that belong in your remediation list?",
+      "hint": "Informational output is not the same as a finding.",
+      "options": [
+        {
+          "id": "n1",
+          "label": "Publicly readable database backup at /backup/db_dump_2026-02-28.sql.gz"
+        },
+        {
+          "id": "n2",
+          "label": "Directory indexing enabled at /backup/"
+        },
+        {
+          "id": "n3",
+          "label": "PHPSESSID cookie without HttpOnly and Secure flags"
+        },
+        {
+          "id": "n4",
+          "label": "phpinfo.php exposed"
+        },
+        {
+          "id": "n5",
+          "label": "Server responds to HEAD requests"
+        },
+        {
+          "id": "n6",
+          "label": "Start and end time of the scan"
+        },
+        {
+          "id": "n7",
+          "label": "TRACE method enabled"
+        }
+      ],
+      "correct": [
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n7"
+      ],
+      "explanation": "Five real findings: the exposed backup, directory indexing, weak cookie flags, phpinfo disclosure and TRACE. HEAD support is normal HTTP behaviour and scan timestamps are metadata. Reporting those two as vulnerabilities is exactly how a scanner report loses credibility with a dev team."
+    },
+    {
+      "id": "q2",
+      "type": "single",
+      "points": 5,
+      "prompt": "Which finding is the most urgent and why?",
+      "options": [
+        {
+          "id": "u1",
+          "label": "Missing X-Frame-Options, because clickjacking can hijack user clicks"
+        },
+        {
+          "id": "u2",
+          "label": "The readable database backup, because it may already be a data exposure"
+        },
+        {
+          "id": "u3",
+          "label": "TRACE enabled, because it allows cross site tracing"
+        },
+        {
+          "id": "u4",
+          "label": "ETag inode leakage, because it reveals filesystem internals"
+        }
+      ],
+      "correct": "u2",
+      "explanation": "A world readable database dump is direct data exposure. Anyone who found that URL already has the data, credentials hashes included, and no header hardening undoes that. Treat it as a possible incident, not a backlog ticket: remove the file, check access logs for who fetched it, and rotate anything the dump contains."
+    },
+    {
+      "id": "q3",
+      "type": "keywords",
+      "points": 5,
+      "prompt": "How would you remediate the directory indexing on /backup/?",
+      "placeholder": "Name the configuration change and any supporting control.",
+      "min_words": 6,
+      "concepts": [
+        {
+          "label": "Disable automatic directory listing",
+          "points": 3,
+          "any": [
+            "options -indexes",
+            "autoindex",
+            "directory listing",
+            "disable indexing",
+            "disable directory",
+            "turn off indexing",
+            "indexes off"
+          ]
+        },
+        {
+          "label": "Remove or relocate the exposed files and restrict access",
+          "points": 2,
+          "any": [
+            "move",
+            "remove",
+            "delete",
+            "outside the webroot",
+            "outside web root",
+            "restrict",
+            "authenticat",
+            "access control",
+            "permission"
+          ]
+        }
+      ],
+      "model_answer": "Turn off automatic indexing in the Apache config with Options -Indexes, then move backups out of the webroot entirely and require authentication for any remaining internal path.",
+      "explanation": "Two layers matter. Options -Indexes stops the listing, but the real fix is that backups should never live under the webroot. Hiding the listing while leaving the file reachable is a cosmetic fix."
+    },
+    {
+      "id": "q4",
+      "type": "single",
+      "points": 4,
+      "prompt": "What is the actual risk introduced by the missing HttpOnly flag on PHPSESSID?",
+      "options": [
+        {
+          "id": "h1",
+          "label": "The cookie can be sent over plain HTTP"
+        },
+        {
+          "id": "h2",
+          "label": "JavaScript running in the page can read the session cookie, so an XSS bug turns into session theft"
+        },
+        {
+          "id": "h3",
+          "label": "The session never expires"
+        },
+        {
+          "id": "h4",
+          "label": "The cookie can be reused across subdomains"
+        }
+      ],
+      "correct": "h2",
+      "explanation": "HttpOnly blocks document.cookie access from scripts. Without it, any cross site scripting flaw escalates into full session hijack. The plain HTTP concern is the separate Secure flag, and lifetime is controlled by expiry settings."
+    },
+    {
+      "id": "q5",
+      "type": "keywords",
+      "points": 5,
+      "prompt": "Two of these findings are header issues that a scanner always reports. How do you keep them in the report without derailing the fix conversation?",
+      "placeholder": "Talk about severity, exploitability and how you present it.",
+      "min_words": 8,
+      "concepts": [
+        {
+          "label": "Rank findings by severity or risk",
+          "points": 2,
+          "any": [
+            "severity",
+            "prioriti",
+            "risk rating",
+            "rank",
+            "triage",
+            "critical first",
+            "high first"
+          ]
+        },
+        {
+          "label": "Judge real exploitability and impact for this app",
+          "points": 2,
+          "any": [
+            "exploitab",
+            "impact",
+            "context",
+            "likelihood",
+            "false positive",
+            "realistic",
+            "reachab"
+          ]
+        },
+        {
+          "label": "Group the low severity hardening items together",
+          "points": 1,
+          "any": [
+            "group",
+            "batch",
+            "hardening",
+            "low severity",
+            "quick win",
+            "single ticket",
+            "bundle"
+          ]
+        }
+      ],
+      "model_answer": "Rank by severity and real exploitability: the backup exposure and phpinfo go at the top with evidence, then bundle the missing headers into one low severity hardening ticket so the team fixes them together without treating them as emergencies.",
+      "explanation": "Credible triage separates data exposure from hardening. State severity, justify it with exploitability in this application's context, and group the low severity items so the owner can act on the top of the list first."
+    }
+  ],
+  "concept": "Automated web scanners produce findings, not conclusions. The analyst's job is to validate, rank by real impact, and give the owner a fix order they can act on.",
+  "remediation": [
+    "Remove the backup archive from the webroot and review access logs for prior downloads",
+    "Set Options -Indexes and remove phpinfo.php from the production host",
+    "Add HttpOnly, Secure and SameSite to session cookies",
+    "Disable TRACE and add X-Frame-Options, X-Content-Type-Options and a CSP",
+    "Suppress version banners and ETag inode data at the proxy"
+  ]
+}

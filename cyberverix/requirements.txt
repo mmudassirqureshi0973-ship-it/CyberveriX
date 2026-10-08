@@ -1,0 +1,6 @@
+# CyberVeriX has no third party dependencies.
+# Everything runs on the Python 3.9+ standard library:
+#   http.server, sqlite3, hashlib, hmac, secrets, json, re, unittest
+#
+# There is nothing to pip install. Start the app with:
+#   python3 backend/app.py

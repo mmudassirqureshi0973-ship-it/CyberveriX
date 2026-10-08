@@ -1,0 +1,246 @@
+{
+  "id": "fund-core-01",
+  "title": "Applied Security Fundamentals",
+  "category": "fundamentals",
+  "difficulty": "Easy",
+  "minutes": 12,
+  "summary": "Scenario based questions on the vocabulary that every other skill in this platform depends on.",
+  "objective": "Apply the CIA triad, threat and risk vocabulary, and control types to concrete situations rather than definitions.",
+  "scenario": "Fundamentals are only useful if you can apply them to a real situation. Each question below describes something that happened. Choose or explain the correct concept for that situation, not the textbook definition.",
+  "evidence": [
+    {
+      "type": "note",
+      "title": "How this challenge is graded",
+      "content": "The written questions are graded on whether your explanation contains the right concepts, not on wording. Two or three clear sentences score better than a memorised definition."
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single",
+      "points": 4,
+      "prompt": "A script with no authorisation silently edits patient medication doses in a hospital records system. Records stay available and no data is copied out. Which pillar of the CIA triad is primarily affected?",
+      "options": [
+        {
+          "id": "c1",
+          "label": "Confidentiality"
+        },
+        {
+          "id": "c2",
+          "label": "Integrity"
+        },
+        {
+          "id": "c3",
+          "label": "Availability"
+        },
+        {
+          "id": "c4",
+          "label": "Non-repudiation"
+        }
+      ],
+      "correct": "c2",
+      "explanation": "Data was altered without authorisation, so integrity is the pillar under attack. Nothing was disclosed and nothing went offline. In a clinical system this is also the most dangerous of the three: a wrong dose that looks trustworthy causes harm faster than an outage anyone can see."
+    },
+    {
+      "id": "q2",
+      "type": "single",
+      "points": 4,
+      "prompt": "An employee's badge opens the main office door but is refused at the server room. The badge is valid and the reader confirms who they are. Which control is doing the refusing?",
+      "options": [
+        {
+          "id": "d1",
+          "label": "Authorisation"
+        },
+        {
+          "id": "d2",
+          "label": "Authentication"
+        },
+        {
+          "id": "d3",
+          "label": "Identification"
+        },
+        {
+          "id": "d4",
+          "label": "Accounting"
+        }
+      ],
+      "correct": "d1",
+      "explanation": "Authentication already succeeded: the system knows who they are and accepts the proof. Authorisation is the separate decision about what that verified identity is permitted to reach. Most real access control bugs, IDOR included, live in exactly this gap."
+    },
+    {
+      "id": "q3",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "A company runs an internet facing server missing a critical patch. A ransomware group is actively exploiting that flaw in the wild. Explain what the vulnerability, the threat and the risk are in this scenario.",
+      "placeholder": "Map each of the three terms to a specific part of the scenario.",
+      "min_words": 12,
+      "concepts": [
+        {
+          "label": "Vulnerability is the missing patch / weakness",
+          "points": 2,
+          "any": [
+            "missing patch",
+            "unpatched",
+            "the patch",
+            "weakness",
+            "flaw",
+            "vulnerability is"
+          ]
+        },
+        {
+          "label": "Threat is the ransomware group / actor exploiting it",
+          "points": 2,
+          "any": [
+            "ransomware group",
+            "threat actor",
+            "attacker",
+            "adversary",
+            "threat is",
+            "actively exploit"
+          ]
+        },
+        {
+          "label": "Risk combines likelihood and impact",
+          "points": 2,
+          "any": [
+            "likelihood",
+            "probability",
+            "chance",
+            "impact",
+            "consequence",
+            "likelihood and impact",
+            "exposure"
+          ]
+        }
+      ],
+      "model_answer": "The vulnerability is the missing critical patch on the internet facing server. The threat is the ransomware group actively exploiting that flaw. The risk is the combination: a high likelihood of exploitation given the exposure, times the impact of ransomware on the business.",
+      "explanation": "Vulnerability is the weakness you own, threat is the actor or event that could use it, risk is likelihood times impact and is the only one of the three that a business decision can be made about. Mixing the terms is why security reports get ignored."
+    },
+    {
+      "id": "q4",
+      "type": "single",
+      "points": 4,
+      "prompt": "A monitoring tool logs a failed login. Nothing else happens. In incident terminology, what is this?",
+      "options": [
+        {
+          "id": "e1",
+          "label": "An incident, because a failed login indicates an attack attempt"
+        },
+        {
+          "id": "e2",
+          "label": "An event, because it is an observable occurrence with no confirmed adverse effect"
+        },
+        {
+          "id": "e3",
+          "label": "A breach, because credentials were involved"
+        },
+        {
+          "id": "e4",
+          "label": "A vulnerability, because the account could be guessed"
+        }
+      ],
+      "correct": "e2",
+      "explanation": "An event is any observable occurrence. It becomes an incident when it actually or potentially harms confidentiality, integrity or availability. A breach is narrower still: confirmed unauthorised access to or disclosure of data. Precise words keep an alert queue from turning into eighty open incidents."
+    },
+    {
+      "id": "q5",
+      "type": "multi",
+      "points": 6,
+      "prompt": "Which of the following are PREVENTIVE controls?",
+      "hint": "Preventive stops it happening. Detective tells you it happened.",
+      "options": [
+        {
+          "id": "p1",
+          "label": "Multi factor authentication on remote access"
+        },
+        {
+          "id": "p2",
+          "label": "A SIEM alert for privileged account creation"
+        },
+        {
+          "id": "p3",
+          "label": "A host firewall blocking inbound database connections"
+        },
+        {
+          "id": "p4",
+          "label": "CCTV recording the data centre entrance"
+        },
+        {
+          "id": "p5",
+          "label": "Application allowlisting that blocks unsigned executables"
+        },
+        {
+          "id": "p6",
+          "label": "A verified nightly backup restore test"
+        }
+      ],
+      "correct": [
+        "p1",
+        "p3",
+        "p5"
+      ],
+      "explanation": "MFA, a blocking firewall rule and application allowlisting all stop the action before it happens. SIEM alerts and CCTV are detective, they tell you after the fact. Backups are corrective, they help you recover. A control set with no detective layer is blind, and one with no corrective layer cannot recover."
+    },
+    {
+      "id": "q6",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "Explain least privilege using a workplace example, and say what it buys you when an account is compromised.",
+      "placeholder": "Give the principle, an example, and the benefit during a compromise.",
+      "min_words": 10,
+      "concepts": [
+        {
+          "label": "Only the minimum access needed for the role",
+          "points": 2,
+          "any": [
+            "minimum",
+            "only the access",
+            "only what",
+            "need to know",
+            "needed to do",
+            "least amount",
+            "no more than"
+          ]
+        },
+        {
+          "label": "A concrete example of separated access",
+          "points": 2,
+          "any": [
+            "helpdesk",
+            "intern",
+            "admin",
+            "finance",
+            "read only",
+            "separate account",
+            "example",
+            "developer",
+            "contractor"
+          ]
+        },
+        {
+          "label": "Limits blast radius after compromise",
+          "points": 2,
+          "any": [
+            "blast radius",
+            "limit",
+            "contain",
+            "reduce",
+            "lateral",
+            "cannot reach",
+            "damage",
+            "scope"
+          ]
+        }
+      ],
+      "model_answer": "Least privilege means every account gets only the access its role requires and nothing more. A helpdesk technician can reset passwords but has no domain admin rights and no access to the finance share. When that helpdesk account is phished, the attacker inherits only helpdesk access, so the blast radius stays small instead of turning into a domain wide compromise.",
+      "explanation": "Least privilege is a blast radius control. The point is not that it prevents compromise, it is that it caps what a compromise is worth. Standing admin rights are why one phished user becomes a domain incident."
+    }
+  ],
+  "concept": "Fundamentals are the vocabulary that makes every other skill communicable. If you cannot label what happened, you cannot prioritise it, escalate it, or explain it to someone who controls the budget.",
+  "remediation": [
+    "Practise mapping real incidents to CIA pillars until it is automatic",
+    "Keep threat, vulnerability and risk separate in every sentence you write",
+    "Classify each control you meet as preventive, detective or corrective",
+    "Use event, incident and breach precisely in tickets and reports"
+  ]
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CyberVeriX — Practical Cybersecurity Skill Verification</title>
+<meta name="description" content="CyberVeriX evaluates practical cybersecurity skills through safe, simulated challenges and produces a transparent skill profile and career readiness report.">
+<link rel="stylesheet" href="/css/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%233c2a63'/><path d='M16 6l8 3.2v6.4c0 5-3.4 8.6-8 10.4-4.6-1.8-8-5.4-8-10.4V9.2z' fill='none' stroke='%23f2ede2' stroke-width='2.2'/><path d='M12 16.2l2.9 2.9L20.4 13' fill='none' stroke='%23f2ede2' stroke-width='2.2'/></svg>">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<div id="app-shell" hidden>
+  <header class="topbar">
+    <button class="topbar__menu" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <a class="brand brand--sm" href="#/dashboard">
+      <span class="brand__mark" aria-hidden="true">CV</span>
+      <span class="brand__name">CyberVeriX</span>
+    </a>
+    <div class="topbar__score" id="topbar-score"></div>
+  </header>
+
+  <nav class="sidenav" id="sidenav" aria-label="Main navigation">
+    <a class="brand" href="#/dashboard">
+      <span class="brand__mark" aria-hidden="true">CV</span>
+      <span>
+        <span class="brand__name">CyberVeriX</span>
+        <span class="brand__sub">Skill verification</span>
+      </span>
+    </a>
+    <ul class="sidenav__list">
+      <li><a href="#/dashboard" data-route="dashboard">Dashboard</a></li>
+      <li><a href="#/challenges" data-route="challenges">Challenges</a></li>
+      <li><a href="#/profile" data-route="profile">Skill profile</a></li>
+      <li><a href="#/readiness" data-route="readiness">Career readiness</a></li>
+      <li><a href="#/report" data-route="report">Report</a></li>
+    </ul>
+    <div class="sidenav__foot">
+      <div class="sidenav__user">
+        <span class="avatar" id="nav-avatar" aria-hidden="true"></span>
+        <span>
+          <strong id="nav-name">Student</strong>
+          <small id="nav-email"></small>
+        </span>
+      </div>
+      <button class="btn btn--ghost btn--sm" id="logout-btn">Sign out</button>
+      <p class="disclaimer-mini">Educational assessment. Not a professional certification.</p>
+    </div>
+  </nav>
+
+  <main id="main" class="main" tabindex="-1"></main>
+</div>
+
+<div id="public-shell">
+  <main id="public-main" tabindex="-1"></main>
+</div>
+
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/ui.js"></script>
+<script src="/js/charts.js"></script>
+<script src="/js/views-public.js"></script>
+<script src="/js/views-challenges.js"></script>
+<script src="/js/views-profile.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

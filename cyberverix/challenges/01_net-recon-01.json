@@ -1,0 +1,219 @@
+{
+  "id": "net-recon-01",
+  "title": "Network Reconnaissance Triage",
+  "category": "network",
+  "difficulty": "Easy",
+  "minutes": 10,
+  "summary": "Read a simulated Nmap service scan of a lab file server and decide what deserves attention first.",
+  "objective": "Interpret scan output, separate open from closed ports, and turn findings into a defensible recommendation.",
+  "scenario": "You are the junior analyst on a lab hardening project. A teammate ran an authorised service scan against hr-file-01, a file server in the isolated 10.10.24.0/24 lab network, and pasted the output below. Nothing was exploited and no live system is involved. Your job is triage: what is exposed, what is risky, and what do you tell the system owner?",
+  "evidence": [
+    {
+      "type": "terminal",
+      "title": "nmap -sV -Pn 10.10.24.15",
+      "content": "# nmap -sV -Pn 10.10.24.15   (LAB TARGET - simulated output, no live scan)\nStarting Nmap 7.94 ( https://nmap.org )\nNmap scan report for hr-file-01.lab.local (10.10.24.15)\nHost is up (0.00042s latency).\nNot shown: 994 filtered tcp ports\n\nPORT     STATE  SERVICE       VERSION\n21/tcp   closed ftp\n22/tcp   open   ssh           OpenSSH 7.2p2 Ubuntu 4ubuntu2.8\n23/tcp   open   telnet        Linux telnetd\n80/tcp   open   http          Apache httpd 2.4.29 ((Ubuntu))\n139/tcp  closed netbios-ssn\n445/tcp  open   microsoft-ds  Samba smbd 4.7.6-Ubuntu (workgroup: LAB)\n3306/tcp open   mysql         MySQL 5.7.33-0ubuntu0.16.04.1\n8080/tcp closed http-proxy\n\nService Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel\nNmap done: 1 IP address (1 host up) scanned in 12.44 seconds\n"
+    },
+    {
+      "type": "note",
+      "title": "Asset context",
+      "content": "hr-file-01 stores HR documents and is reachable from the general staff VLAN. There is no jump host in front of it. The server owner believes only file sharing is exposed."
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multi",
+      "points": 5,
+      "prompt": "Which ports are reported OPEN in this scan?",
+      "hint": "Read the STATE column, not just the port numbers.",
+      "options": [
+        {
+          "id": "o21",
+          "label": "21/tcp ftp"
+        },
+        {
+          "id": "o22",
+          "label": "22/tcp ssh"
+        },
+        {
+          "id": "o23",
+          "label": "23/tcp telnet"
+        },
+        {
+          "id": "o80",
+          "label": "80/tcp http"
+        },
+        {
+          "id": "o139",
+          "label": "139/tcp netbios-ssn"
+        },
+        {
+          "id": "o445",
+          "label": "445/tcp microsoft-ds"
+        },
+        {
+          "id": "o3306",
+          "label": "3306/tcp mysql"
+        },
+        {
+          "id": "o8080",
+          "label": "8080/tcp http-proxy"
+        }
+      ],
+      "correct": [
+        "o22",
+        "o23",
+        "o80",
+        "o445",
+        "o3306"
+      ],
+      "explanation": "Five ports are open: 22, 23, 80, 445 and 3306. Ports 21, 139 and 8080 are reported closed, which means the host answered but nothing is listening. Filtered, closed and open are three different states and mixing them up leads to false findings in a report."
+    },
+    {
+      "id": "q2",
+      "type": "single",
+      "points": 4,
+      "prompt": "Which open service should receive attention first?",
+      "options": [
+        {
+          "id": "a22",
+          "label": "22/tcp OpenSSH 7.2p2, because SSH is a remote access service"
+        },
+        {
+          "id": "a23",
+          "label": "23/tcp Telnet, because the protocol has no transport encryption"
+        },
+        {
+          "id": "a80",
+          "label": "80/tcp Apache 2.4.29, because web servers are always the biggest risk"
+        },
+        {
+          "id": "a445",
+          "label": "445/tcp Samba, because file sharing is the server's job"
+        }
+      ],
+      "correct": "a23",
+      "explanation": "Telnet is the standout. It transmits usernames, passwords and session data in cleartext, and a modern network has no reason to run it when SSH already exists on the same host. SSH, HTTP and SMB all need review, but none of them is broken by design the way Telnet is."
+    },
+    {
+      "id": "q3",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "Explain why that service is a problem and what you would do about it.",
+      "placeholder": "Example shape: the protocol does X, an attacker on the network can therefore do Y, so we should do Z.",
+      "min_words": 8,
+      "concepts": [
+        {
+          "label": "Traffic is unencrypted / cleartext",
+          "points": 2,
+          "any": [
+            "cleartext",
+            "clear text",
+            "plaintext",
+            "plain text",
+            "unencrypted",
+            "not encrypted",
+            "no encryption"
+          ]
+        },
+        {
+          "label": "Credentials or session data can be captured",
+          "points": 2,
+          "any": [
+            "credential",
+            "password",
+            "sniff",
+            "intercept",
+            "capture",
+            "eavesdrop",
+            "man in the middle",
+            "mitm"
+          ]
+        },
+        {
+          "label": "Disable it and use SSH instead",
+          "points": 2,
+          "any": [
+            "disable",
+            "remove",
+            "turn off",
+            "shut down",
+            "ssh",
+            "replace"
+          ]
+        }
+      ],
+      "model_answer": "Telnet carries credentials and commands in cleartext, so anyone able to sniff traffic on the staff VLAN can capture the login and replay or reuse it. Disable telnetd and use the SSH service already running on port 22.",
+      "explanation": "A complete answer names the protocol weakness (no encryption), the attacker capability it creates (credential capture on a shared network), and a concrete fix (disable telnetd, standardise on SSH). Naming only one of the three is a partial answer."
+    },
+    {
+      "id": "q4",
+      "type": "single",
+      "points": 4,
+      "prompt": "MySQL on 3306 is reachable from the staff VLAN. What is the best recommendation?",
+      "options": [
+        {
+          "id": "b1",
+          "label": "Change the MySQL root password and leave the port open"
+        },
+        {
+          "id": "b2",
+          "label": "Bind MySQL to localhost or restrict 3306 to the application hosts that need it"
+        },
+        {
+          "id": "b3",
+          "label": "Move MySQL to a non-standard port so scanners miss it"
+        },
+        {
+          "id": "b4",
+          "label": "Nothing, the database is protected by its own authentication"
+        }
+      ],
+      "correct": "b2",
+      "explanation": "Reduce exposure first. A database should listen on localhost or be filtered to specific application hosts. Password rotation is good hygiene but does not remove reachability, and port shuffling is security by obscurity that a -p- scan defeats in seconds."
+    },
+    {
+      "id": "q5",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "The scan also shows Apache 2.4.29 and OpenSSH 7.2p2. What is your next investigative step for those versions?",
+      "placeholder": "Describe what you would look up and what you would do with the result.",
+      "min_words": 6,
+      "concepts": [
+        {
+          "label": "Check the versions against known vulnerabilities",
+          "points": 3,
+          "any": [
+            "cve",
+            "known vulnerabilit",
+            "vulnerability database",
+            "nvd",
+            "advisor",
+            "exploit db",
+            "vuln"
+          ]
+        },
+        {
+          "label": "Patch or upgrade the outdated packages",
+          "points": 3,
+          "any": [
+            "patch",
+            "update",
+            "upgrade",
+            "newer version",
+            "latest version"
+          ]
+        }
+      ],
+      "model_answer": "Look up CVEs published against Apache 2.4.29 and OpenSSH 7.2p2, confirm the build is really unpatched rather than a backported distro package, then schedule a patch or upgrade with the server owner.",
+      "explanation": "Version banners are a starting point, not a finding. Correlate the version against a vulnerability source, confirm the distro has not backported fixes, then drive it to a patch decision."
+    }
+  ],
+  "concept": "Reconnaissance output is data, not conclusions. Value comes from mapping each open service to the exposure it creates for that specific asset, then ranking by what an attacker on that network could realistically do.",
+  "remediation": [
+    "Disable Telnet and standardise on SSH with key based authentication",
+    "Bind MySQL to localhost or filter 3306 to named application hosts",
+    "Patch Apache and OpenSSH, then rescan to confirm the change",
+    "Document the intended service baseline so future scans are diffs, not surprises"
+  ]
+}

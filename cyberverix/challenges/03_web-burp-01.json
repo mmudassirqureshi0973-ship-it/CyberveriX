@@ -1,0 +1,220 @@
+{
+  "id": "web-burp-01",
+  "title": "Intercepted Request Analysis",
+  "category": "web",
+  "difficulty": "Medium",
+  "minutes": 12,
+  "summary": "A captured request and response from a lab proxy session. Identify the flaw, prove it from the evidence, and describe the fix.",
+  "objective": "Read raw HTTP, spot an access control failure, and separate the primary vulnerability from secondary hygiene issues.",
+  "scenario": "During an authorised test of the lab billing portal you intercepted the exchange below with a local proxy. The tester was logged in as user 2277 and edited a single query parameter before forwarding the request. No production system was touched. Analyse what the response proves.",
+  "evidence": [
+    {
+      "type": "http",
+      "title": "Request (modified by the tester)",
+      "content": "GET /api/v1/invoices?user_id=1043 HTTP/1.1\nHost: portal.lab.local\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nAccept: application/json\nCookie: PHPSESSID=8f2b71c4de904a17b0e3\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.LAB_TOKEN_FOR_USER_2277.sig\nReferer: https://portal.lab.local/billing\nConnection: close\n"
+    },
+    {
+      "type": "http",
+      "title": "Response from the server",
+      "content": "HTTP/1.1 200 OK\nDate: Tue, 11 Mar 2026 10:02:44 GMT\nServer: Apache/2.4.29 (Ubuntu) PHP/7.2.24\nSet-Cookie: PHPSESSID=8f2b71c4de904a17b0e3; path=/\nX-Powered-By: PHP/7.2.24\nContent-Type: application/json\nContent-Length: 412\n\n{\n  \"requested_user_id\": 1043,\n  \"authenticated_user_id\": 2277,\n  \"invoices\": [\n    {\"id\": 88213, \"owner\": \"n.okafor@lab.local\", \"amount\": \"1,240.00\", \"status\": \"unpaid\"},\n    {\"id\": 88214, \"owner\": \"n.okafor@lab.local\", \"amount\": \"310.50\", \"status\": \"paid\"}\n  ],\n  \"debug\": \"SELECT * FROM invoices WHERE user_id = 1043 -- /var/www/portal/api/invoices.php line 47\"\n}\n"
+    },
+    {
+      "type": "note",
+      "title": "Tester context",
+      "content": "The authenticated session belongs to user 2277 (t.mwangi@lab.local). User 1043 is a different customer, n.okafor@lab.local. The tester changed only user_id in the query string."
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single",
+      "points": 6,
+      "prompt": "What is the primary vulnerability shown by this exchange?",
+      "options": [
+        {
+          "id": "v1",
+          "label": "SQL injection, because the response contains a SQL statement"
+        },
+        {
+          "id": "v2",
+          "label": "Insecure Direct Object Reference / broken object level authorization"
+        },
+        {
+          "id": "v3",
+          "label": "Session fixation, because the Set-Cookie repeats the same PHPSESSID"
+        },
+        {
+          "id": "v4",
+          "label": "Cross site scripting, because JSON is returned to the browser"
+        }
+      ],
+      "correct": "v2",
+      "explanation": "The server accepted a user supplied object identifier and returned another customer's data. Authenticated user 2277 asked for user 1043's invoices and got them. That is broken object level authorization, commonly called IDOR. The leaked SQL string is information disclosure, not proof of injection, and nothing here shows a payload breaking out of the query."
+    },
+    {
+      "id": "q2",
+      "type": "multi",
+      "points": 6,
+      "prompt": "Which lines in the evidence prove the finding?",
+      "options": [
+        {
+          "id": "e1",
+          "label": "requested_user_id 1043 differs from authenticated_user_id 2277"
+        },
+        {
+          "id": "e2",
+          "label": "The response status is 200 OK rather than 403"
+        },
+        {
+          "id": "e3",
+          "label": "The invoice owner is n.okafor@lab.local, not the logged in user"
+        },
+        {
+          "id": "e4",
+          "label": "The Server header discloses Apache 2.4.29"
+        },
+        {
+          "id": "e5",
+          "label": "The response is Content-Type application/json"
+        },
+        {
+          "id": "e6",
+          "label": "The Referer header points at /billing"
+        }
+      ],
+      "correct": [
+        "e1",
+        "e2",
+        "e3"
+      ],
+      "explanation": "Three lines carry the proof: the identity mismatch, the 200 instead of a 403, and returned data owned by a different account. Server banners, content type and Referer are context. A finding is only as strong as the evidence you can point at."
+    },
+    {
+      "id": "q3",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "How should the developer fix this?",
+      "placeholder": "Be specific about where the check belongs and what it compares.",
+      "min_words": 8,
+      "concepts": [
+        {
+          "label": "Enforce authorization server side",
+          "points": 2,
+          "any": [
+            "server side",
+            "server-side",
+            "on the server",
+            "backend",
+            "authoriz",
+            "access control",
+            "permission check"
+          ]
+        },
+        {
+          "label": "Derive identity from the session or token, not the parameter",
+          "points": 3,
+          "any": [
+            "session",
+            "token",
+            "jwt",
+            "authenticated user",
+            "own id",
+            "from the token",
+            "server derived",
+            "do not trust",
+            "never trust",
+            "ignore the parameter"
+          ]
+        },
+        {
+          "label": "Verify record ownership before returning data",
+          "points": 1,
+          "any": [
+            "ownership",
+            "owns",
+            "belong",
+            "owner check",
+            "scope the query",
+            "scope the invoice",
+            "where user_id = session"
+          ]
+        }
+      ],
+      "model_answer": "Stop trusting the user_id parameter. Resolve identity from the authenticated session or token on the server, scope the invoice query to that identity, and return 403 when a record does not belong to the caller.",
+      "explanation": "The authoritative identity must come from the server side session or token. Scope the query to that identity and verify ownership per object. Client side hiding, sequential ID obfuscation or UUIDs alone are not access control."
+    },
+    {
+      "id": "q4",
+      "type": "keywords",
+      "points": 5,
+      "prompt": "Name the secondary issues visible in this response and why they matter.",
+      "placeholder": "There are at least two beyond the main flaw.",
+      "min_words": 8,
+      "concepts": [
+        {
+          "label": "Verbose debug / SQL and path disclosure",
+          "points": 3,
+          "any": [
+            "debug",
+            "stack trace",
+            "sql",
+            "query",
+            "file path",
+            "line 47",
+            "information disclosure",
+            "verbose error",
+            "internal detail"
+          ]
+        },
+        {
+          "label": "Session cookie missing Secure, HttpOnly or SameSite",
+          "points": 2,
+          "any": [
+            "httponly",
+            "http only",
+            "secure flag",
+            "samesite",
+            "cookie flag",
+            "cookie attribute"
+          ]
+        }
+      ],
+      "model_answer": "The debug field leaks the SQL statement and the server file path, which hands an attacker internal structure for free. The Set-Cookie also has no HttpOnly, Secure or SameSite attributes, so the session cookie is exposed to script access and plain HTTP. The X-Powered-By and Server banners add version disclosure on top.",
+      "explanation": "Debug output belongs in server logs, never in a response body. Session cookies need HttpOnly, Secure and SameSite. Version banners should be suppressed. None of these alone is critical, but together they lower the effort for the next attacker."
+    },
+    {
+      "id": "q5",
+      "type": "single",
+      "points": 4,
+      "prompt": "Which OWASP Top 10 2021 category does the primary finding belong to?",
+      "options": [
+        {
+          "id": "w1",
+          "label": "A01 Broken Access Control"
+        },
+        {
+          "id": "w2",
+          "label": "A03 Injection"
+        },
+        {
+          "id": "w3",
+          "label": "A05 Security Misconfiguration"
+        },
+        {
+          "id": "w4",
+          "label": "A07 Identification and Authentication Failures"
+        }
+      ],
+      "correct": "w1",
+      "explanation": "IDOR sits under A01 Broken Access Control, the top category in the 2021 list. Authentication worked correctly here: the user proved who they were. Authorization is what failed."
+    }
+  ],
+  "concept": "Authentication answers who you are. Authorization answers what you may touch. Most real access control bugs pass authentication cleanly and fail on per object ownership checks that only exist on the server.",
+  "remediation": [
+    "Resolve the acting identity from the session or token, never from a request parameter",
+    "Add per object ownership checks in the data access layer, not just the controller",
+    "Return 403 for unauthorised object access and log the attempt",
+    "Strip debug output from responses and route it to server logs",
+    "Set HttpOnly, Secure and SameSite on session cookies"
+  ]
+}

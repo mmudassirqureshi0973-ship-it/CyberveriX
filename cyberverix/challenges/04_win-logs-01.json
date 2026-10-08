@@ -1,0 +1,227 @@
+{
+  "id": "win-logs-01",
+  "title": "Windows Event Log Investigation",
+  "category": "windows",
+  "difficulty": "Medium",
+  "minutes": 15,
+  "summary": "Reconstruct what happened on a finance workstation from simulated Security and Sysmon events.",
+  "objective": "Read event IDs in sequence, distinguish routine activity from attacker behaviour, and choose the right next investigative step.",
+  "scenario": "FIN-WS-014 was flagged by a colleague who noticed the machine was slow. You pulled the event export below from the lab collector. All events are simulated training data. Work out the story the log tells, then decide what you would do next as the analyst on shift.",
+  "evidence": [
+    {
+      "type": "terminal",
+      "title": "Event export, FIN-WS-014 (simulated)",
+      "content": "Host: FIN-WS-014   Timezone: UTC   Source: simulated lab export\n\nTIME      SOURCE            EVENT  DETAIL\n09:41:02  Security          4624   Logon success. Account: j.doe  Logon Type: 2 (interactive)  Workstation: FIN-WS-014\n11:03:11  Security          4625   Logon failure. Account: svc_backup  Logon Type: 3 (network)  Source IP: 10.10.31.77\n11:03:12  Security          4625   Logon failure. Account: svc_backup  Logon Type: 3  Source IP: 10.10.31.77\n   ...    (16 further 4625 events for svc_backup between 11:03:12 and 11:04:58, same source IP)\n11:05:01  Security          4624   Logon success. Account: svc_backup  Logon Type: 3  Source IP: 10.10.31.77\n11:05:02  Security          4672   Special privileges assigned to new logon. Account: svc_backup\n11:06:20  Sysmon            1      Process create. Image: C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\n                                   CommandLine: powershell.exe -nop -w hidden -enc SQBFAFgAKABOAGUAdwAtAE8AYgBqAGUAYwB0...\n                                   ParentImage: C:\\Windows\\System32\\wbem\\WmiPrvSE.exe   User: LAB\\svc_backup\n11:06:24  Sysmon            3      Network connect. Image: powershell.exe  DestinationIp: 185.212.44.19  DestinationPort: 443\n11:07:40  Sysmon            11     File create. TargetFilename: C:\\Users\\Public\\upd.dat  Image: powershell.exe\n11:09:03  Security          4720   A user account was created. Account: helpdesk_svc  By: LAB\\svc_backup\n11:09:07  Security          4732   Member added to security-enabled local group Administrators. Member: helpdesk_svc\n11:12:55  Security          1102   The audit log was cleared. Account: LAB\\svc_backup\n11:31:40  Security          4624   Logon success. Account: helpdesk_svc  Logon Type: 3  Source IP: 10.10.31.77\n"
+    },
+    {
+      "type": "note",
+      "title": "Reference",
+      "content": "4624 logon success, 4625 logon failure, 4672 special privileges assigned, 4720 account created, 4732 member added to local group, 1102 audit log cleared. Sysmon 1 process create, 3 network connect, 11 file create. Logon type 2 is interactive at the console, type 3 is over the network."
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multi",
+      "points": 6,
+      "prompt": "Which events in this export are suspicious?",
+      "hint": "One entry is completely normal for a user sitting at the machine.",
+      "options": [
+        {
+          "id": "s1",
+          "label": "09:41 4624 interactive logon by j.doe"
+        },
+        {
+          "id": "s2",
+          "label": "The burst of 4625 failures for svc_backup followed by a 4624 success"
+        },
+        {
+          "id": "s3",
+          "label": "11:06 PowerShell with -w hidden -enc launched by WmiPrvSE.exe"
+        },
+        {
+          "id": "s4",
+          "label": "11:06 outbound 443 connection from powershell.exe to 185.212.44.19"
+        },
+        {
+          "id": "s5",
+          "label": "11:09 creation of helpdesk_svc followed by Administrators group membership"
+        },
+        {
+          "id": "s6",
+          "label": "11:12 audit log cleared"
+        }
+      ],
+      "correct": [
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6"
+      ],
+      "explanation": "Everything except the 09:41 interactive logon is suspicious. j.doe logging in at the console in the morning is expected behaviour. The rest reads as a chain: password guessing, hidden encoded PowerShell spawned by WMI, external callback, privileged account creation and log clearing."
+    },
+    {
+      "id": "q2",
+      "type": "single",
+      "points": 5,
+      "prompt": "What do the eighteen 4625 events followed by a 4624 for the same account indicate?",
+      "options": [
+        {
+          "id": "p1",
+          "label": "A misconfigured backup service retrying a stale password"
+        },
+        {
+          "id": "p2",
+          "label": "A password guessing attack against svc_backup that eventually succeeded"
+        },
+        {
+          "id": "p3",
+          "label": "Kerberos clock skew between the host and the domain controller"
+        },
+        {
+          "id": "p4",
+          "label": "Normal account lockout behaviour"
+        }
+      ],
+      "correct": "p2",
+      "explanation": "Repeated network logon failures from a single source IP in under two minutes, ending in a success, is the classic brute force or password spray signature. A stale service password produces failures but never a sudden success, and everything that follows the 11:05 logon confirms the account was taken over rather than fixed."
+    },
+    {
+      "id": "q3",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "The PowerShell command line uses -enc and -w hidden, spawned by WmiPrvSE.exe. What does that tell you and what would you do about it?",
+      "placeholder": "Cover what the flags mean, what the parent process implies, and your action.",
+      "min_words": 10,
+      "concepts": [
+        {
+          "label": "Encoded command should be decoded",
+          "points": 2,
+          "any": [
+            "base64",
+            "decode",
+            "encoded command",
+            "deobfuscat",
+            "decode the command"
+          ]
+        },
+        {
+          "label": "Hidden and encoded execution means deliberate obfuscation",
+          "points": 2,
+          "any": [
+            "obfuscat",
+            "hide",
+            "hidden",
+            "evade",
+            "evasion",
+            "conceal",
+            "avoid detection"
+          ]
+        },
+        {
+          "label": "WMI parent means remote execution / process ancestry matters",
+          "points": 2,
+          "any": [
+            "wmi",
+            "remote execution",
+            "remotely",
+            "parent process",
+            "process ancestry",
+            "lateral movement",
+            "process tree"
+          ]
+        }
+      ],
+      "model_answer": "The -enc payload is base64 that should be decoded in a safe analysis environment, and -w hidden means the operator did not want a visible window, so this is deliberate obfuscation rather than admin scripting. WmiPrvSE.exe as the parent points to remote execution over WMI, which fits the compromised svc_backup network logon, so I would pull the full process tree and the decoded payload before touching the host.",
+      "explanation": "Three signals stack here. Encoded plus hidden equals intentional concealment. A WmiPrvSE parent means the command arrived remotely, not from a user. The next step is decoding the payload in an isolated environment and pulling the surrounding process tree, not deleting the file."
+    },
+    {
+      "id": "q4",
+      "type": "single",
+      "points": 4,
+      "prompt": "Which single event most strongly suggests the attacker is covering their tracks?",
+      "options": [
+        {
+          "id": "t1",
+          "label": "4672 special privileges assigned to new logon"
+        },
+        {
+          "id": "t2",
+          "label": "Sysmon 11 file create in C:\\Users\\Public"
+        },
+        {
+          "id": "t3",
+          "label": "1102 the audit log was cleared"
+        },
+        {
+          "id": "t4",
+          "label": "4732 member added to Administrators"
+        }
+      ],
+      "correct": "t3",
+      "explanation": "Event 1102 means the Security log was wiped. It is one of the few events that has almost no legitimate cause on a workstation, and it is why forwarding logs off the host to a collector matters: the copy you are reading survived because it left the machine before the clear."
+    },
+    {
+      "id": "q5",
+      "type": "keywords",
+      "points": 6,
+      "prompt": "What are your next investigative steps for this host?",
+      "placeholder": "Give at least three concrete actions in a sensible order.",
+      "min_words": 10,
+      "concepts": [
+        {
+          "label": "Isolate or contain the host",
+          "points": 2,
+          "any": [
+            "isolate",
+            "contain",
+            "quarantine",
+            "network isolation",
+            "disconnect",
+            "block"
+          ]
+        },
+        {
+          "label": "Deal with the compromised and created accounts",
+          "points": 2,
+          "any": [
+            "disable",
+            "reset",
+            "rotate",
+            "remove the account",
+            "helpdesk_svc",
+            "svc_backup",
+            "credential",
+            "password reset"
+          ]
+        },
+        {
+          "label": "Pivot to the source host and check for spread",
+          "points": 2,
+          "any": [
+            "10.10.31.77",
+            "source host",
+            "source ip",
+            "lateral",
+            "other hosts",
+            "spread",
+            "scope",
+            "pivot",
+            "hunt"
+          ]
+        }
+      ],
+      "model_answer": "Isolate FIN-WS-014 while preserving volatile data, disable helpdesk_svc and reset svc_backup, then pivot to 10.10.31.77 to find where the network logons originated and hunt the same indicators across other hosts to scope the intrusion.",
+      "explanation": "Contain, cut the attacker's access, then scope. Isolating one host while the source at 10.10.31.77 and the new Administrators account are untouched leaves the intrusion live, and blocking the C2 IP alone treats a symptom."
+    }
+  ],
+  "concept": "Windows event IDs are only meaningful in sequence. A single 4625 is noise, eighteen followed by a 4624 and a 4720 is an intrusion narrative. Log forwarding is what keeps that narrative available after a 1102.",
+  "remediation": [
+    "Forward Security and Sysmon logs off host so a 1102 cannot destroy the evidence",
+    "Alert on 4625 bursts followed by success from the same source",
+    "Alert on 4720 and 4732 outside change windows",
+    "Enable PowerShell script block logging to capture decoded commands",
+    "Restrict service accounts from interactive and remote logon where not required"
+  ]
+}
